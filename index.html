@@ -135,24 +135,56 @@
             }
         }
 
-        async function callGemini(prompt) {
-            // 在实际应用中，请替换为您的 Gemini API 调用逻辑
-            // 为了演示，我们使用一个模拟函数
-            // return mockGeminiCall(prompt);
+async function callGemini(prompt) {
+    // 1. 在这里填入您的 API 密钥
+    // 您需要从 Google AI Studio 获取您自己的免费 API 密钥
+    const apiKey = "AIzaSyATgrOskSaySEAi8FpZbHJe4myPBeZqQFo"; // <--- 把你的密钥放在这里
 
-            // 真实 Gemini API 调用
-            const apiKey = ""; // 在Canvas环境中，API密钥将自动提供
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    // 检查密钥是否已填写
+    if (!apiKey || apiKey === "AIzaSyATgrOskSaySEAi8FpZbHJe4myPBeZqQFo") {
+        // 如果没有提供密钥，就不能继续，直接抛出一个明确的错误
+        throw new Error("API 密钥缺失。请将您的 API 密钥添加到脚本中。");
+    }
 
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.5,
-                    topP: 1,
-                    topK: 1,
-                    maxOutputTokens: 2048,
-                },
-            };
+    // 2. 准备 API 请求地址
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    // 3. 准备要发送的数据 (Payload)
+    const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+            temperature: 0.5,
+            topP: 1,
+            topK: 1,
+            maxOutputTokens: 2048,
+        },
+    };
+
+    // 4. 发送网络请求并处理响应
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        // 如果服务器返回错误（例如，因为密钥无效），则抛出错误
+        throw new Error(`API 调用失败，状态码: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // 5. 解析并返回最终结果
+    if (result.candidates && result.candidates.length > 0 &&
+        result.candidates[0].content && result.candidates[0].content.parts &&
+        result.candidates[0].content.parts.length > 0) {
+        // 将 Markdown 格式的文本转换为 HTML
+        return markdownToHtml(result.candidates[0].content.parts[0].text);
+    } else {
+         // 如果响应格式不正确，也抛出错误
+         throw new Error("从 API 收到的响应格式无效。");
+    }
+}
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
