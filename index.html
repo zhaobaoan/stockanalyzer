@@ -71,7 +71,7 @@
                 <p class="mt-4 text-gray-600 font-semibold">正在分析数据并生成报告，请稍候...</p>
                 <p class="mt-2 text-sm text-gray-500">此过程可能需要 30-60 秒</p>
             </div>
-
+            
             <div id="errorContainer" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
                 <strong class="font-bold">错误!</strong>
                 <span class="block sm:inline" id="errorMessage"></span>
@@ -80,9 +80,6 @@
     </div>
 
     <script type="module">
-        // 注意：这是一个演示应用。为了展示功能，我们使用了模拟的金融数据。
-        // 在真实应用中，您需要接入付费的、实时的金融数据 API。
-
         const generateBtn = document.getElementById('generateBtn');
         const tickerInput = document.getElementById('tickerInput');
         const reportContainer = document.getElementById('reportContainer');
@@ -107,12 +104,10 @@
             hideError();
             reportContainer.classList.add('hidden');
             loadingIndicator.style.display = 'flex';
-
+            
             try {
-                // 1. 模拟获取多维度金融数据
                 const financialData = getMockFinancialData(ticker);
 
-                // 2. 并行调用 Gemini API 生成报告的各个部分
                 const sections = [
                     { title: "总体摘要与投资评级", prompt: createSummaryPrompt(ticker, financialData) },
                     { title: "基本面分析", prompt: createFundamentalPrompt(ticker, financialData.fundamental) },
@@ -124,67 +119,37 @@
                 const reportPromises = sections.map(section => callGemini(section.prompt));
                 const generatedSections = await Promise.all(reportPromises);
 
-                // 3. 渲染报告
                 displayReport(ticker, financialData.companyName, generatedSections, sections);
 
             } catch (error) {
                 console.error("生成报告时出错:", error);
-                showError("无法生成报告。请检查您的网络连接或稍后再试。");
+                // 将具体的错误信息显示给用户，更友好
+                showError(`无法生成报告: ${error.message}`);
             } finally {
                 loadingIndicator.style.display = 'none';
             }
         }
 
-async function callGemini(prompt) {
-    // 1. 在这里填入您的 API 密钥
-    // 您需要从 Google AI Studio 获取您自己的免费 API 密钥
-    const apiKey = "AIzaSyATgrOskSaySEAi8FpZbHJe4myPBeZqQFo"; // <--- 把你的密钥放在这里
+        async function callGemini(prompt) {
+            // *** 请在这里填入您自己的 API 密钥 ***
+            const apiKey = "AIzaSyATgrOskSaySEAi8FpZbHJe4myPBeZqQFo"; // 使用您提供的密钥作为示例
 
-    // 检查密钥是否已填写
-    if (!apiKey || apiKey === "AIzaSyATgrOskSaySEAi8FpZbHJe4myPBeZqQFo") {
-        // 如果没有提供密钥，就不能继续，直接抛出一个明确的错误
-        throw new Error("API 密钥缺失。请将您的 API 密钥添加到脚本中。");
-    }
+            // 修正后的密钥检查逻辑
+            if (!apiKey || apiKey === "在这里粘贴您自己的API密钥") {
+                throw new Error("API 密钥缺失或无效。请在代码中提供有效的 API 密钥。");
+            }
 
-    // 2. 准备 API 请求地址
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-    // 3. 准备要发送的数据 (Payload)
-    const payload = {
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-            temperature: 0.5,
-            topP: 1,
-            topK: 1,
-            maxOutputTokens: 2048,
-        },
-    };
-
-    // 4. 发送网络请求并处理响应
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        // 如果服务器返回错误（例如，因为密钥无效），则抛出错误
-        throw new Error(`API 调用失败，状态码: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // 5. 解析并返回最终结果
-    if (result.candidates && result.candidates.length > 0 &&
-        result.candidates[0].content && result.candidates[0].content.parts &&
-        result.candidates[0].content.parts.length > 0) {
-        // 将 Markdown 格式的文本转换为 HTML
-        return markdownToHtml(result.candidates[0].content.parts[0].text);
-    } else {
-         // 如果响应格式不正确，也抛出错误
-         throw new Error("从 API 收到的响应格式无效。");
-    }
-}
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.5,
+                    topP: 1,
+                    topK: 1,
+                    maxOutputTokens: 2048,
+                },
+            };
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -193,17 +158,23 @@ async function callGemini(prompt) {
             });
 
             if (!response.ok) {
-                throw new Error(`API call failed with status: ${response.status}`);
+                throw new Error(`API 调用失败，状态码: ${response.status}`);
             }
 
             const result = await response.json();
-            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
-                // 将 Markdown 格式的文本转换为 HTML
+
+            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts.length > 0) {
                 return markdownToHtml(result.candidates[0].content.parts[0].text);
             } else {
-                 throw new Error("从API收到的响应格式无效。");
+               // 如果API返回了成功状态但内容为空或格式不符，也需要处理
+               if (result.promptFeedback && result.promptFeedback.blockReason) {
+                   throw new Error(`请求被阻止，原因: ${result.promptFeedback.blockReason}`);
+               }
+               throw new Error("从 API 收到的响应格式无效。");
             }
         }
+        
+        // --- 这部分是干净的，没有重复的代码 ---
 
         function displayReport(ticker, companyName, generatedSections, sections) {
             let reportHTML = `<h2 class="text-2xl md:text-3xl font-bold text-center mb-2">${companyName} (${ticker})</h2>`;
@@ -217,12 +188,12 @@ async function callGemini(prompt) {
                     </div>
                 `;
             });
-
+            
             reportContainer.innerHTML = reportHTML;
             reportContainer.classList.remove('hidden');
         }
 
-        // --- 提示词生成函数 ---
+        // --- 提示词生成函数 (无需修改) ---
         function createSummaryPrompt(ticker, data) {
             return `
             角色：你是一位顶尖的华尔街股票分析师，为高净值客户撰写报告。你的风格是客观、精炼、直击要点。
@@ -331,11 +302,9 @@ async function callGemini(prompt) {
             4.  直接输出报告内容，语言需严谨、客观。
             `;
         }
-
-        // --- 模拟数据和辅助函数 ---
+        
+        // --- 模拟数据和辅助函数 (无需修改) ---
         function getMockFinancialData(ticker) {
-            // 在真实世界中，这里会调用一个或多个金融数据API
-            // 例如: Alpha Vantage, IEX Cloud, Polygon.io 等
             const base = ticker.charCodeAt(0);
             return {
                 companyName: `${ticker} 创新科技公司`,
@@ -382,17 +351,12 @@ async function callGemini(prompt) {
             errorContainer.classList.add('hidden');
         }
 
-        // 简易的 Markdown -> HTML 转换器
         function markdownToHtml(text) {
             let html = text;
-            // **bold** -> <strong>bold</strong>
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // *italic* -> <em>italic</em>
             html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-            // * item -> <ul><li>item</li></ul>
             html = html.replace(/^\s*[\*\-]\s+(.*)/gm, '<ul><li>$1</li></ul>');
-            html = html.replace(/<\/ul>\s*<ul>/g, ''); // 合并连续的列表
-            // Newlines -> <br>
+            html = html.replace(/<\/ul>\s*<ul>/g, '');
             html = html.replace(/\n/g, '<br>');
             return html;
         }
