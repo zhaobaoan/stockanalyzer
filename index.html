@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 股票分析报告生成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+        }
+        .report-section h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1F2937;
+            border-bottom: 2px solid #3B82F6;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .report-section p, .report-section ul {
+            font-size: 1rem;
+            line-height: 1.75;
+            color: #374151;
+        }
+        .report-section ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+        }
+        .report-section li {
+            margin-bottom: 0.5rem;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">AI 股票分析报告生成器</h1>
+            <p class="mt-2 text-md text-gray-600">输入美股代码，获取一份由 AI 生成的多维度分析报告。</p>
+        </header>
+
+        <main>
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="tickerInput" placeholder="例如: AAPL, GOOG, TSLA" class="flex-grow w-full px-4 py-2 text-lg border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="generateBtn" class="w-full sm:w-auto bg-blue-600 text-white font-semibold px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-300">
+                        生成报告
+                    </button>
+                </div>
+            </div>
+
+            <div id="reportContainer" class="bg-white rounded-lg shadow-md p-6 md:p-8 hidden">
+                <!-- 报告内容将动态插入此处 -->
+            </div>
+
+            <div id="loadingIndicator" class="hidden justify-center items-center flex-col text-center">
+                <div class="loader"></div>
+                <p class="mt-4 text-gray-600 font-semibold">正在分析数据并生成报告，请稍候...</p>
+                <p class="mt-2 text-sm text-gray-500">此过程可能需要 30-60 秒</p>
+            </div>
+
+            <div id="errorContainer" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                <strong class="font-bold">错误!</strong>
+                <span class="block sm:inline" id="errorMessage"></span>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        // 注意：这是一个演示应用。为了展示功能，我们使用了模拟的金融数据。
+        // 在真实应用中，您需要接入付费的、实时的金融数据 API。
+
+        const generateBtn = document.getElementById('generateBtn');
+        const tickerInput = document.getElementById('tickerInput');
+        const reportContainer = document.getElementById('reportContainer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessage = document.getElementById('errorMessage');
+
+        generateBtn.addEventListener('click', generateReport);
+        tickerInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                generateReport();
+            }
+        });
+
+        async function generateReport() {
+            const ticker = tickerInput.value.trim().toUpperCase();
+            if (!ticker) {
+                showError("请输入一个股票代码。");
+                return;
+            }
+
+            hideError();
+            reportContainer.classList.add('hidden');
+            loadingIndicator.style.display = 'flex';
+
+            try {
+                // 1. 模拟获取多维度金融数据
+                const financialData = getMockFinancialData(ticker);
+
+                // 2. 并行调用 Gemini API 生成报告的各个部分
+                const sections = [
+                    { title: "总体摘要与投资评级", prompt: createSummaryPrompt(ticker, financialData) },
+                    { title: "基本面分析", prompt: createFundamentalPrompt(ticker, financialData.fundamental) },
+                    { title: "技术面分析", prompt: createTechnicalPrompt(ticker, financialData.technical) },
+                    { title: "新闻与市场情绪分析", prompt: createSentimentPrompt(ticker, financialData.sentiment) },
+                    { title: "风险分析", prompt: createRiskPrompt(ticker, financialData.risks) }
+                ];
+
+                const reportPromises = sections.map(section => callGemini(section.prompt));
+                const generatedSections = await Promise.all(reportPromises);
+
+                // 3. 渲染报告
+                displayReport(ticker, financialData.companyName, generatedSections, sections);
+
+            } catch (error) {
+                console.error("生成报告时出错:", error);
+                showError("无法生成报告。请检查您的网络连接或稍后再试。");
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        async function callGemini(prompt) {
+            // 在实际应用中，请替换为您的 Gemini API 调用逻辑
+            // 为了演示，我们使用一个模拟函数
+            // return mockGeminiCall(prompt);
+
+            // 真实 Gemini API 调用
+            const apiKey = ""; // 在Canvas环境中，API密钥将自动提供
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.5,
+                    topP: 1,
+                    topK: 1,
+                    maxOutputTokens: 2048,
+                },
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                // 将 Markdown 格式的文本转换为 HTML
+                return markdownToHtml(result.candidates[0].content.parts[0].text);
+            } else {
+                 throw new Error("从API收到的响应格式无效。");
+            }
+        }
+
+        function displayReport(ticker, companyName, generatedSections, sections) {
+            let reportHTML = `<h2 class="text-2xl md:text-3xl font-bold text-center mb-2">${companyName} (${ticker})</h2>`;
+            reportHTML += `<p class="text-center text-gray-500 mb-8">报告生成于: ${new Date().toLocaleString('zh-CN')}</p>`;
+
+            generatedSections.forEach((content, index) => {
+                reportHTML += `
+                    <div class="report-section mb-8">
+                        <h3>${sections[index].title}</h3>
+                        <div>${content}</div>
+                    </div>
+                `;
+            });
+
+            reportContainer.innerHTML = reportHTML;
+            reportContainer.classList.remove('hidden');
+        }
+
+        // --- 提示词生成函数 ---
+        function createSummaryPrompt(ticker, data) {
+            return `
+            角色：你是一位顶尖的华尔街股票分析师，为高净值客户撰写报告。你的风格是客观、精炼、直击要点。
+
+            任务：基于以下关于 ${data.companyName} (${ticker}) 的核心数据，生成一份“总体摘要与投资评级”报告。
+
+            核心数据：
+            - 公司名称: ${data.companyName}
+            - 市值: ${data.fundamental.marketCap}
+            - 市盈率 (P/E): ${data.fundamental.peRatio}
+            - 每股收益 (EPS): ${data.fundamental.eps}
+            - 关键技术信号: ${data.technical.keySignal}
+            - 市场情绪: ${data.sentiment.overallSentiment}
+            - 主要风险: ${data.risks.primaryRisk}
+
+            输出要求：
+            1.  **投资评级：** 从“强烈买入”、“买入”、“持有”、“卖出”、“强烈卖出”中选择一个。
+            2.  **核心论点 (Thesis)：** 用2-3句话总结支持该评级的最关键理由。
+            3.  **要点总结：** 使用无序列表，列出3-4个最关键的优势和劣势。
+            4.  语言必须专业、客观，避免使用任何夸张或不确定的词语。直接输出报告内容，不要包含任何前言或解释。
+            `;
+        }
+
+        function createFundamentalPrompt(ticker, data) {
+            return `
+            角色：你是一位专注于基本面分析的金融专家。
+
+            任务：分析以下 ${ticker} 的基本面数据，并撰写一份“基本面分析”报告。
+
+            数据：
+            - 市值: ${data.marketCap}
+            - 市盈率 (P/E): ${data.peRatio}
+            - 每股收益 (EPS): ${data.eps}
+            - 营收增长率 (年化): ${data.revenueGrowth}
+            - 净利润率: ${data.netMargin}
+            - 资产负债率: ${data.debtToEquity}
+            - 自由现金流: ${data.freeCashFlow}
+
+            输出要求：
+            1.  **财务健康状况：** 评估公司的盈利能力、增长性和财务杠杆。
+            2.  **估值水平：** 评价当前市盈率相对于行业和历史水平是偏高还是偏低。
+            3.  **未来展望：** 基于现有数据，对公司的长期价值做出简要评价。
+            4.  使用无序列表格式，清晰地呈现分析要点。直接输出报告内容。
+            `;
+        }
+
+        function createTechnicalPrompt(ticker, data) {
+            return `
+            角色：你是一位精通各种技术指标的图表分析师 (Chartist)。
+
+            任务：分析以下 ${ticker} 的技术面数据，并撰写一份“技术面分析”报告。
+
+            数据：
+            - 当前价格: ${data.currentPrice}
+            - 50日移动平均线: ${data.ma50}
+            - 200日移动平均线: ${data.ma200}
+            - 相对强弱指数 (RSI): ${data.rsi}
+            - 成交量状况: ${data.volumeStatus}
+            - 关键支撑位: ${data.supportLevel}
+            - 关键阻力位: ${data.resistanceLevel}
+
+            输出要求：
+            1.  **短期趋势：** 判断当前是处于上升、下降还是盘整趋势。
+            2.  **关键信号：** 指出是否存在黄金交叉、死亡交叉、超买、超卖等明确信号。
+            3.  **关键价位：** 明确指出当前重要的支撑位和阻力位。
+            4.  使用无序列表格式，清晰地呈现分析要点。直接输出报告内容。
+            `;
+        }
+
+        function createSentimentPrompt(ticker, data) {
+            return `
+            角色：你是一位分析另类数据（Alternative Data）的量化分析师。
+
+            任务：整合以下关于 ${ticker} 的新闻和市场情绪数据，撰写一份“新闻与市场情绪分析”报告。
+
+            数据：
+            - 整体情绪评估: ${data.overallSentiment}
+            - 近期正面新闻标题: "${data.positiveNews.join('", "')}"
+            - 近期负面新闻标题: "${data.negativeNews.join('", "')}"
+            - 社交媒体热度: ${data.socialMediaBuzz}
+
+            输出要求：
+            1.  **情绪总结：** 总结当前市场对该股票的整体情绪是积极、消极还是中性。
+            2.  **主要驱动因素：** 分析是哪些正面或负面新闻在主导市场情绪。
+            3.  **潜在影响：** 评估当前的市场情绪可能对短期股价产生何种影响。
+            4.  使用无序列表格式，清晰地呈现分析要点。直接输出报告内容。
+            `;
+        }
+
+        function createRiskPrompt(ticker, data) {
+             return `
+            角色：你是一位经验丰富的风险管理官。
+
+            任务：基于以下信息，识别并撰写一份关于 ${ticker} 的“风险分析”报告。
+
+            信息：
+            - 公司主要风险: ${data.primaryRisk}
+            - 行业竞争风险: ${data.competitionRisk}
+            - 宏观经济风险: ${data.macroRisk}
+            - 监管风险: ${data.regulatoryRisk}
+
+            输出要求：
+            1.  **核心风险：** 明确指出当前公司面临的最主要风险是什么。
+            2.  **风险分类：** 使用无序列表，将风险分为公司特定风险、行业风险和宏观经济风险三类，并分别进行简要说明。
+            3.  **风险评估：** 对每个风险的潜在影响程度进行简要评估（高/中/低）。
+            4.  直接输出报告内容，语言需严谨、客观。
+            `;
+        }
+
+        // --- 模拟数据和辅助函数 ---
+        function getMockFinancialData(ticker) {
+            // 在真实世界中，这里会调用一个或多个金融数据API
+            // 例如: Alpha Vantage, IEX Cloud, Polygon.io 等
+            const base = ticker.charCodeAt(0);
+            return {
+                companyName: `${ticker} 创新科技公司`,
+                fundamental: {
+                    marketCap: `${(base * 15).toFixed(1)}B USD`,
+                    peRatio: (base / 4).toFixed(2),
+                    eps: (base / 20).toFixed(2),
+                    revenueGrowth: `${(base % 10 + 5).toFixed(1)}%`,
+                    netMargin: `${(base % 8 + 10).toFixed(1)}%`,
+                    debtToEquity: (0.2 + (base % 5) / 10).toFixed(2),
+                    freeCashFlow: `${(base * 100).toFixed(1)}M USD`
+                },
+                technical: {
+                    currentPrice: (100 + base).toFixed(2),
+                    ma50: (98 + base).toFixed(2),
+                    ma200: (90 + base).toFixed(2),
+                    rsi: (40 + (base % 30)).toFixed(1),
+                    volumeStatus: "高于平均水平",
+                    keySignal: "股价位于50日和200日移动平均线之上，呈看涨趋势。",
+                    supportLevel: (95 + base).toFixed(2),
+                    resistanceLevel: (115 + base).toFixed(2),
+                },
+                sentiment: {
+                    overallSentiment: "中性偏积极",
+                    positiveNews: ["发布新款创新产品，市场反应热烈", "第三季度财报超出预期"],
+                    negativeNews: ["供应链面临挑战", "面临反垄断调查传闻"],
+                    socialMediaBuzz: "高"
+                },
+                risks: {
+                    primaryRisk: "对单一供应商的依赖",
+                    competitionRisk: "行业竞争激烈，利润率可能受挤压",
+                    macroRisk: "全球经济放缓可能影响消费者需求",
+                    regulatoryRisk: "数据隐私法规日益严格"
+                }
+            };
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorContainer.classList.add('hidden');
+        }
+
+        // 简易的 Markdown -> HTML 转换器
+        function markdownToHtml(text) {
+            let html = text;
+            // **bold** -> <strong>bold</strong>
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // *italic* -> <em>italic</em>
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // * item -> <ul><li>item</li></ul>
+            html = html.replace(/^\s*[\*\-]\s+(.*)/gm, '<ul><li>$1</li></ul>');
+            html = html.replace(/<\/ul>\s*<ul>/g, ''); // 合并连续的列表
+            // Newlines -> <br>
+            html = html.replace(/\n/g, '<br>');
+            return html;
+        }
+
+    </script>
+</body>
+</html>
